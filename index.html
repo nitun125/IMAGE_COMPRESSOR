@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Compressor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #dbeafe;
+      --bg-deep:      #bfdbfe;
+      --panel-left:   #f0f9ff;
+      --panel-center: #ffffff;
+      --panel-right:  #fff7ed;
+      --accent:       #f97316;
+      --accent-h:     #ea580c;
+      --accent-light: #fff7ed;
+      --accent2:      #fbbf24;
+      --accent2-light:#fef3c7;
+      --blue:         #3b82f6;
+      --blue-light:   #eff6ff;
+      --green:        #10b981;
+      --green-light:  #d1fae5;
+      --red:          #ef4444;
+      --text:         #0f172a;
+      --muted:        #64748b;
+      --border:       #e2e8f0;
+      --radius:       16px;
+      --radius-sm:    10px;
+      --shadow:       0 2px 12px rgba(0,0,0,0.07);
+      --shadow-lg:    0 8px 32px rgba(0,0,0,0.11);
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    header {
+      height: 58px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      background: rgba(255,255,255,0.72);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(255,255,255,0.9);
+      gap: 12px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .logo h1 {
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+    }
+
+    .logo p {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 1px;
+    }
+
+    .header-right { display: flex; align-items: center; gap: 10px; }
+
+    #btn-clear {
+      padding: 5px 12px;
+      border: 1px solid rgba(239,68,68,0.35);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--red);
+      font-size: 0.78rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      display: none;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    #btn-clear:hover { background: rgba(239,68,68,0.07); border-color: var(--red); }
+
+    /* ── Three-panel grid ────────────────────────────────────────────────── */
+    .panels {
+      display: grid;
+      grid-template-columns: 256px 1fr 272px;
+      gap: 12px;
+      padding: 12px;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .panel {
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-left {
+      background: var(--panel-left);
+      border: 1px solid rgba(147,197,253,0.45);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-center {
+      background: transparent;
+      gap: 12px;
+      overflow: visible;
+    }
+
+    .panel-right {
+      background: var(--panel-right);
+      border: 1px solid rgba(253,186,116,0.45);
+      box-shadow: var(--shadow);
+    }
+
+    /* ── Panel header strip ──────────────────────────────────────────────── */
+    .ph {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 14px 9px;
+      flex-shrink: 0;
+    }
+
+    .ph-title {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .ph-title h3 {
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 99px;
+      min-width: 20px;
+      text-align: center;
+    }
+
+    .badge-blue { background: rgba(147,197,253,0.35); color: var(--blue); }
+    .badge-orange { background: rgba(249,115,22,0.15); color: var(--accent); }
+
+    .ph-divider { height: 1px; background: var(--border); margin: 0 14px; flex-shrink: 0; }
+
+    /* ── Scrollable list ─────────────────────────────────────────────────── */
+    .plist {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .plist::-webkit-scrollbar { width: 4px; }
+    .plist::-webkit-scrollbar-track { background: transparent; }
+    .plist::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 2px; }
+
+    /* ── Empty states ────────────────────────────────────────────────────── */
+    .empty {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 32px 14px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .empty svg { opacity: 0.22; }
+    .empty p { font-size: 0.78rem; line-height: 1.55; }
+
+    /* ── Original cards ──────────────────────────────────────────────────── */
+    .orig-card {
+      background: white;
+      border-radius: var(--radius-sm);
+      padding: 9px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(147,197,253,0.25);
+      animation: from-left 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+
+    @keyframes from-left {
+      from { opacity: 0; transform: translateX(-18px) scale(0.96); }
+      to   { opacity: 1; transform: translateX(0) scale(1); }
+    }
+
+    .orig-thumb {
+      width: 44px;
+      height: 44px;
+      border-radius: 6px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: var(--bg);
+    }
+
+    .orig-info { flex: 1; min-width: 0; }
+
+    .orig-name {
+      font-size: 0.76rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .orig-meta {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 3px;
+    }
+
+    .orig-size { font-size: 0.7rem; color: var(--muted); }
+
+    .fmt-tag {
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      background: var(--blue-light);
+      color: var(--blue);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    .btn-rm {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      padding: 4px;
+      border-radius: 6px;
+      display: flex;
+      flex-shrink: 0;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .btn-rm:hover { color: var(--red); background: rgba(239,68,68,0.08); }
+
+    /* ── Center: drop zone ───────────────────────────────────────────────── */
+    .dz {
+      background: white;
+      border-radius: var(--radius);
+      border: 2.5px dashed rgba(147,197,253,0.7);
+      cursor: pointer;
+      user-select: none;
+      box-shadow: var(--shadow);
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s, padding 0.35s, flex 0.35s;
+      flex-shrink: 0;
+
+      /* full state */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      padding: 36px 24px;
+      text-align: center;
+    }
+
+    .dz:hover, .dz.over {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .dz-ring {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-light), var(--accent2-light));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+      transition: width 0.35s, height 0.35s, margin 0.35s;
+      flex-shrink: 0;
+    }
+
+    .dz h2 { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; transition: font-size 0.25s; }
+    .dz .dz-sub { font-size: 0.78rem; color: var(--muted); }
+    .dz .dz-sub2 { display: none; font-size: 0.74rem; color: var(--muted); }
+
+    .dz-tags {
+      display: flex;
+      gap: 6px;
+      margin-top: 14px;
+      transition: margin 0.3s, opacity 0.3s;
+    }
+
+    .dz-tag {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+    }
+
+    /* Compact mode */
+    .dz.compact {
+      flex-direction: row;
+      padding: 14px 18px;
+      gap: 12px;
+      text-align: left;
+    }
+
+    .dz.compact .dz-ring {
+      width: 40px;
+      height: 40px;
+      margin-bottom: 0;
+    }
+
+    .dz.compact .dz-ring svg { width: 18px; height: 18px; }
+    .dz.compact h2 { font-size: 0.84rem; margin-bottom: 2px; }
+    .dz.compact .dz-sub { display: none; }
+    .dz.compact .dz-sub2 { display: block; }
+    .dz.compact .dz-tags { display: none; }
+
+    /* ── Center: controls box ────────────────────────────────────────────── */
+    .ctrl-box {
+      background: white;
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      overflow-y: auto;
+      min-height: 0;
+    }
+
+    .ctrl-box::-webkit-scrollbar { width: 4px; }
+    .ctrl-box::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 2px; }
+
+    .ctrl-label {
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    /* Quality */
+    .q-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .q-row label { font-size: 0.84rem; font-weight: 600; }
+
+    .q-num {
+      font-size: 1.7rem;
+      font-weight: 900;
+      color: var(--accent);
+      line-height: 1;
+      transition: color 0.2s;
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 3px solid white;
+      box-shadow: 0 0 0 1.5px var(--accent), 0 2px 6px rgba(249,115,22,0.35);
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+
+    input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.18); }
+    input[type=range]:disabled { opacity: 0.38; cursor: not-allowed; }
+
+    input[type=range]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 3px solid white;
+      outline: 1.5px solid var(--accent);
+      cursor: pointer;
+    }
+
+    .q-scale {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 5px;
+    }
+
+    .q-scale span { font-size: 0.66rem; color: var(--muted); }
+
+    .png-note {
+      font-size: 0.74rem;
+      color: var(--muted);
+      background: var(--bg);
+      border-radius: 7px;
+      padding: 8px 10px;
+      margin-top: 10px;
+      display: none;
+    }
+
+    .png-note.show { display: block; }
+
+    /* Format pills */
+    .pills {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .pill {
+      padding: 11px 6px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      background: white;
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: inherit;
+      text-align: center;
+      transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s, transform 0.1s;
+    }
+
+    .pill:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+    .pill.on {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 3px 10px rgba(249,115,22,0.32);
+      transform: translateY(-1px);
+    }
+
+    /* Summary */
+    .summary {
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent-light), var(--accent2-light));
+      padding: 16px;
+      display: none;
+      animation: fade-up 0.3s ease both;
+    }
+
+    .summary.show { display: block; }
+
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .sum-title {
+      font-size: 0.68rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+
+    .sum-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .sum-stat {
+      background: white;
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
+    .sum-val {
+      font-size: 1.1rem;
+      font-weight: 900;
+      line-height: 1;
+      margin-bottom: 3px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .sum-key { font-size: 0.67rem; color: var(--muted); font-weight: 500; }
+
+    /* ── Result cards ────────────────────────────────────────────────────── */
+    .res-card {
+      background: white;
+      border-radius: var(--radius-sm);
+      padding: 11px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(253,186,116,0.28);
+      animation: from-right 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+
+    @keyframes from-right {
+      from { opacity: 0; transform: translateX(18px) scale(0.96); }
+      to   { opacity: 1; transform: translateX(0) scale(1); }
+    }
+
+    .res-top {
+      display: flex;
+      gap: 9px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .res-thumb {
+      width: 44px;
+      height: 44px;
+      border-radius: 6px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: var(--bg);
+    }
+
+    .res-info { flex: 1; min-width: 0; }
+
+    .res-name {
+      font-size: 0.76rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 5px;
+    }
+
+    .res-loading {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .res-sizes {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px;
+      font-size: 0.72rem;
+    }
+
+    .res-orig { color: var(--muted); text-decoration: line-through; }
+    .res-arr  { color: var(--muted); }
+    .res-new  { font-weight: 700; }
+
+    .sv-badge {
+      font-size: 0.67rem;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 99px;
+    }
+
+    .sv-good { background: var(--green-light); color: var(--green); }
+    .sv-bad  { background: var(--accent2-light); color: #b45309; }
+
+    /* Result action buttons */
+    .res-btns {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      border: 1.5px solid transparent;
+      transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+    }
+
+    .btn:disabled { opacity: 0.38; cursor: not-allowed; pointer-events: none; }
+    .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .btn-dl {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .btn-dl:hover { background: var(--accent-h); border-color: var(--accent-h); box-shadow: 0 2px 8px rgba(249,115,22,0.3); }
+
+    .btn-cp {
+      background: white;
+      border-color: var(--border);
+      color: var(--text);
+    }
+
+    .btn-cp:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+    /* Download all */
+    #btn-dl-all {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 4px 11px;
+      border-radius: 7px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      cursor: pointer;
+      display: none;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+
+    #btn-dl-all:hover { background: var(--accent-h); }
+
+    /* ── Toast ───────────────────────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(8px);
+      background: #1e293b;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      z-index: 200;
+      box-shadow: var(--shadow-lg);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      max-width: 88vw;
+      text-align: center;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── Responsive ──────────────────────────────────────────────────────── */
+    @media (max-width: 860px) {
+      body { height: auto; overflow: auto; }
+      .panels {
+        grid-template-columns: 1fr;
+        overflow: visible;
+        height: auto;
+        grid-template-rows: auto auto auto;
+      }
+      .panel-center { order: -1; }
+      .panel-left, .panel-right { max-height: 380px; }
+      .ctrl-box { flex: none; }
+    }
+
+    @media (max-width: 500px) {
+      .panels { padding: 8px; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      </div>
+      <div>
+        <h1>Image Compressor</h1>
+        <p>100% local — nothing leaves your browser</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <button id="btn-clear">Clear all</button>
+    </div>
+  </header>
+
+  <main class="panels">
+
+    <!-- ── Left: Originals ── -->
+    <aside class="panel panel-left">
+      <div class="ph">
+        <div class="ph-title">
+          <h3>Originals</h3>
+          <span class="badge badge-blue" id="orig-count">0</span>
+        </div>
+      </div>
+      <div class="ph-divider"></div>
+      <div class="plist" id="orig-list">
+        <div class="empty" id="left-empty">
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          <p>Original images<br>will appear here</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── Center: Upload + Controls ── -->
+    <section class="panel panel-center">
+
+      <div class="dz" id="dz" role="button" tabindex="0" aria-label="Drop images or click to browse">
+        <div class="dz-ring">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="16 16 12 12 8 16"/>
+            <line x1="12" y1="12" x2="12" y2="21"/>
+            <path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/>
+          </svg>
+        </div>
+        <div>
+          <h2>Drop images here</h2>
+          <div class="dz-sub">or click to browse files</div>
+          <div class="dz-sub2">Drop or click to add more</div>
+        </div>
+        <div class="dz-tags">
+          <span class="dz-tag">JPG</span>
+          <span class="dz-tag">PNG</span>
+          <span class="dz-tag">WebP</span>
+        </div>
+      </div>
+
+      <div class="ctrl-box">
+
+        <div>
+          <div class="ctrl-label">Compression Quality</div>
+          <div class="q-row">
+            <label for="q-slider">Quality level</label>
+            <span class="q-num" id="q-num">80</span>
+          </div>
+          <input type="range" id="q-slider" min="1" max="100" value="80">
+          <div class="q-scale">
+            <span>Smallest</span>
+            <span>Balanced</span>
+            <span>Best quality</span>
+          </div>
+          <div class="png-note" id="png-note">PNG is lossless — quality slider doesn't apply</div>
+        </div>
+
+        <div>
+          <div class="ctrl-label">Output Format</div>
+          <div class="pills">
+            <button class="pill" data-fmt="jpg">JPG</button>
+            <button class="pill on" data-fmt="webp">WebP</button>
+            <button class="pill" data-fmt="png">PNG</button>
+          </div>
+        </div>
+
+        <div class="summary" id="summary">
+          <div class="sum-title">Summary</div>
+          <div class="sum-grid">
+            <div class="sum-stat">
+              <div class="sum-val" id="s-images">0</div>
+              <div class="sum-key">Images</div>
+            </div>
+            <div class="sum-stat">
+              <div class="sum-val" id="s-saved">—</div>
+              <div class="sum-key">Saved</div>
+            </div>
+            <div class="sum-stat">
+              <div class="sum-val" id="s-before">—</div>
+              <div class="sum-key">Total before</div>
+            </div>
+            <div class="sum-stat">
+              <div class="sum-val" id="s-after">—</div>
+              <div class="sum-key">Total after</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Right: Results ── -->
+    <aside class="panel panel-right">
+      <div class="ph">
+        <div class="ph-title">
+          <h3>Compressed</h3>
+          <span class="badge badge-orange" id="res-count">0</span>
+        </div>
+        <button id="btn-dl-all">Download all</button>
+      </div>
+      <div class="ph-divider"></div>
+      <div class="plist" id="res-list">
+        <div class="empty" id="right-empty">
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <p>Compressed files<br>will appear here</p>
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <input type="file" id="file-input" multiple accept="image/jpeg,image/png,image/webp">
+  <div id="toast"></div>
+
+  <script>
+    // ── State ─────────────────────────────────────────────────────────────────
+    // id → { file, canvas, previewUrl, compressedBlob, compressedUrl }
+    const imgs = new Map();
+    let quality = 80;
+    let format  = 'webp';
+    let uid     = 0;
+
+    // ── DOM refs ──────────────────────────────────────────────────────────────
+    const dz         = document.getElementById('dz');
+    const fileInput  = document.getElementById('file-input');
+    const origList   = document.getElementById('orig-list');
+    const resList    = document.getElementById('res-list');
+    const leftEmpty  = document.getElementById('left-empty');
+    const rightEmpty = document.getElementById('right-empty');
+    const qSlider    = document.getElementById('q-slider');
+    const qNum       = document.getElementById('q-num');
+    const pngNote    = document.getElementById('png-note');
+    const summary    = document.getElementById('summary');
+    const clearBtn   = document.getElementById('btn-clear');
+    const dlAllBtn   = document.getElementById('btn-dl-all');
+    const origCount  = document.getElementById('orig-count');
+    const resCount   = document.getElementById('res-count');
+    const pills      = document.querySelectorAll('.pill[data-fmt]');
+
+    const MIME = { jpg:'image/jpeg', png:'image/png', webp:'image/webp' };
+    const EXT  = { 'image/jpeg':'jpg', 'image/png':'png', 'image/webp':'webp' };
+    const FLABEL = { 'image/jpeg':'JPG', 'image/png':'PNG', 'image/webp':'WebP' };
+    const ACCEPTED = new Set(Object.values(MIME));
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function bytes(n) {
+      if (n < 1024)        return n + ' B';
+      if (n < 1048576)     return (n / 1024).toFixed(1) + ' KB';
+      return (n / 1048576).toFixed(2) + ' MB';
+    }
+
+    function stem(name) { return name.replace(/\.[^.]+$/, ''); }
+
+    function esc(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    let toastT;
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastT);
+      toastT = setTimeout(() => el.classList.remove('show'), 3200);
+    }
+
+    function updateTrack() {
+      const pct = (quality - 1) / 99 * 100;
+      qSlider.style.background =
+        `linear-gradient(to right, var(--accent) ${pct}%, var(--border) ${pct}%)`;
+    }
+
+    // ── Drop zone ─────────────────────────────────────────────────────────────
+    dz.addEventListener('click',   () => fileInput.click());
+    dz.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') fileInput.click(); });
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+    dz.addEventListener('dragleave', e => { if (!dz.contains(e.relatedTarget)) dz.classList.remove('over'); });
+    dz.addEventListener('drop', e => {
+      e.preventDefault();
+      dz.classList.remove('over');
+      accept([...e.dataTransfer.files]);
+    });
+    fileInput.addEventListener('change', () => { accept([...fileInput.files]); fileInput.value = ''; });
+
+    function accept(files) {
+      const ok  = files.filter(f => ACCEPTED.has(f.type));
+      const bad = files.filter(f => !ACCEPTED.has(f.type));
+      if (bad.length) toast(`Skipped ${bad.length} unsupported file(s) — only JPG, PNG, WebP accepted.`);
+      ok.forEach(load);
+    }
+
+    // ── Format pills ──────────────────────────────────────────────────────────
+    pills.forEach(p => p.addEventListener('click', () => {
+      pills.forEach(x => x.classList.remove('on'));
+      p.classList.add('on');
+      format = p.dataset.fmt;
+      const isPng = format === 'png';
+      pngNote.classList.toggle('show', isPng);
+      qSlider.disabled = isPng;
+      recompressAll();
+    }));
+
+    // ── Quality slider ────────────────────────────────────────────────────────
+    qSlider.addEventListener('input', () => {
+      quality = +qSlider.value;
+      qNum.textContent = quality;
+      updateTrack();
+      debounceAll();
+    });
+
+    updateTrack();
+
+    let debT;
+    function debounceAll() { clearTimeout(debT); debT = setTimeout(recompressAll, 220); }
+    function recompressAll() { imgs.forEach((_, id) => compress(id)); }
+
+    // ── Load & compress ───────────────────────────────────────────────────────
+    function load(file) {
+      const id = ++uid;
+      const previewUrl = URL.createObjectURL(file);
+
+      addOrigCard(id, file, previewUrl);
+      addResCard(id, file);
+      refreshUI();
+
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width  = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          canvas.getContext('2d').drawImage(img, 0, 0);
+          imgs.set(id, { file, canvas, previewUrl, compressedBlob: null, compressedUrl: null });
+          compress(id);
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function compress(id) {
+      const s = imgs.get(id);
+      if (!s) return;
+      const mime = MIME[format];
+      const q    = mime === 'image/png' ? undefined : quality / 100;
+      setLoading(id, true);
+      s.canvas.toBlob(blob => {
+        if (s.compressedUrl) URL.revokeObjectURL(s.compressedUrl);
+        s.compressedBlob = blob;
+        s.compressedUrl  = URL.createObjectURL(blob);
+        setLoading(id, false);
+        updateResCard(id);
+        updateSummary();
+      }, mime, q);
+    }
+
+    // ── Original card ─────────────────────────────────────────────────────────
+    function addOrigCard(id, file, previewUrl) {
+      leftEmpty.remove();
+
+      const d = document.createElement('div');
+      d.className = 'orig-card';
+      d.dataset.oid = id;
+      d.innerHTML = `
+        <img class="orig-thumb" src="${esc(previewUrl)}" alt="">
+        <div class="orig-info">
+          <div class="orig-name" title="${esc(file.name)}">${esc(file.name)}</div>
+          <div class="orig-meta">
+            <span class="orig-size">${bytes(file.size)}</span>
+            <span class="fmt-tag">${FLABEL[file.type]||'IMG'}</span>
+          </div>
+        </div>
+        <button class="btn-rm" title="Remove">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>`;
+      d.querySelector('.btn-rm').addEventListener('click', () => remove(id));
+      origList.appendChild(d);
+      updateCounts();
+    }
+
+    // ── Result card ───────────────────────────────────────────────────────────
+    function addResCard(id, file) {
+      rightEmpty.remove();
+
+      const d = document.createElement('div');
+      d.className = 'res-card';
+      d.dataset.rid = id;
+      d.innerHTML = `
+        <div class="res-top">
+          <img class="res-thumb" src="" alt="" data-thumb>
+          <div class="res-info">
+            <div class="res-name" data-name>${esc(stem(file.name))}.${format}</div>
+            <div class="res-loading" data-loading>
+              <div class="spinner"></div><span>Compressing…</span>
+            </div>
+            <div class="res-sizes" data-sizes style="display:none">
+              <span class="res-orig" data-orig>${bytes(file.size)}</span>
+              <span class="res-arr">→</span>
+              <span class="res-new" data-new>—</span>
+              <span class="sv-badge sv-good" data-badge></span>
+            </div>
+          </div>
+        </div>
+        <div class="res-btns">
+          <button class="btn btn-dl" data-dl disabled>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download
+          </button>
+          <button class="btn btn-cp" data-cp disabled>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2"/>
+              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+            </svg>
+            Copy
+          </button>
+        </div>`;
+      d.querySelector('[data-dl]').addEventListener('click', () => download(id));
+      d.querySelector('[data-cp]').addEventListener('click', e => copy(id, e.currentTarget));
+      resList.appendChild(d);
+      updateCounts();
+    }
+
+    function setLoading(id, on) {
+      const c = resList.querySelector(`[data-rid="${id}"]`);
+      if (!c) return;
+      c.querySelector('[data-loading]').style.display = on ? 'flex' : 'none';
+      c.querySelector('[data-sizes]').style.display   = on ? 'none' : 'flex';
+      c.querySelector('[data-dl]').disabled = on;
+      c.querySelector('[data-cp]').disabled = on;
+    }
+
+    function updateResCard(id) {
+      const s = imgs.get(id);
+      const c = resList.querySelector(`[data-rid="${id}"]`);
+      if (!s || !c) return;
+
+      c.querySelector('[data-thumb]').src = s.compressedUrl;
+      c.querySelector('[data-name]').textContent =
+        `${stem(s.file.name)}.${EXT[s.compressedBlob.type] || format}`;
+
+      const orig = s.file.size;
+      const now  = s.compressedBlob.size;
+      const diff = orig - now;
+      const pct  = Math.round(Math.abs(diff) / orig * 100);
+
+      c.querySelector('[data-new]').textContent = bytes(now);
+
+      const badge = c.querySelector('[data-badge]');
+      if (diff >= 0) {
+        badge.textContent = `↓${pct}%`;
+        badge.className = 'sv-badge sv-good';
+      } else {
+        badge.textContent = `↑${pct}%`;
+        badge.className = 'sv-badge sv-bad';
+      }
+    }
+
+    // ── Summary ───────────────────────────────────────────────────────────────
+    function updateSummary() {
+      const ready = [...imgs.values()].filter(s => s.compressedBlob);
+      if (ready.length === 0) { summary.classList.remove('show'); return; }
+
+      const totOrig = ready.reduce((a, s) => a + s.file.size, 0);
+      const totNew  = ready.reduce((a, s) => a + s.compressedBlob.size, 0);
+      const diff    = totOrig - totNew;
+      const pct     = Math.round(Math.abs(diff) / totOrig * 100);
+
+      document.getElementById('s-images').textContent = imgs.size;
+      document.getElementById('s-saved').textContent  = (diff >= 0 ? '↓' : '↑') + pct + '%';
+      document.getElementById('s-before').textContent = bytes(totOrig);
+      document.getElementById('s-after').textContent  = bytes(totNew);
+      summary.classList.add('show');
+    }
+
+    // ── UI refresh ────────────────────────────────────────────────────────────
+    function updateCounts() {
+      origCount.textContent = origList.querySelectorAll('.orig-card').length;
+      resCount.textContent  = resList.querySelectorAll('.res-card').length;
+    }
+
+    function refreshUI() {
+      const hasCards = origList.querySelectorAll('.orig-card').length > 0;
+      clearBtn.style.display = hasCards ? 'inline-block' : 'none';
+      dlAllBtn.style.display = hasCards ? 'inline-block' : 'none';
+      dz.classList.toggle('compact', hasCards);
+    }
+
+    // ── Actions ───────────────────────────────────────────────────────────────
+    function download(id) {
+      const s = imgs.get(id);
+      if (!s?.compressedBlob) return;
+      const ext  = EXT[s.compressedBlob.type] || format;
+      const url  = URL.createObjectURL(s.compressedBlob);
+      const a    = Object.assign(document.createElement('a'), {
+        href: url, download: `${stem(s.file.name)}-compressed.${ext}`
+      });
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }
+
+    async function copy(id, btn) {
+      const s = imgs.get(id);
+      if (!s?.compressedBlob) return;
+      const orig = btn.innerHTML;
+      try {
+        if (!navigator.clipboard?.write) throw 0;
+        await navigator.clipboard.write([new ClipboardItem({ [s.compressedBlob.type]: s.compressedBlob })]);
+        btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg> Copied!`;
+        btn.style.cssText = 'border-color:var(--green);color:var(--green);background:var(--green-light)';
+        setTimeout(() => { btn.innerHTML = orig; btn.style.cssText = ''; }, 2000);
+      } catch {
+        toast('Copy not supported in this browser — use Download instead');
+      }
+    }
+
+    function remove(id) {
+      const s = imgs.get(id);
+      if (s) {
+        if (s.compressedUrl) URL.revokeObjectURL(s.compressedUrl);
+        if (s.previewUrl)    URL.revokeObjectURL(s.previewUrl);
+        imgs.delete(id);
+      }
+      origList.querySelector(`[data-oid="${id}"]`)?.remove();
+      resList.querySelector(`[data-rid="${id}"]`)?.remove();
+
+      if (!origList.querySelector('.orig-card')) {
+        origList.appendChild(mkEmpty('Original images<br>will appear here', 'M3 3h18v18H3zM8.5 8.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM21 15l-5-5L5 21'));
+      }
+      if (!resList.querySelector('.res-card')) {
+        resList.appendChild(mkEmpty('Compressed files<br>will appear here', 'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3'));
+      }
+
+      updateCounts();
+      refreshUI();
+      updateSummary();
+    }
+
+    function mkEmpty(html, path) {
+      const d = document.createElement('div');
+      d.className = 'empty';
+      d.innerHTML = `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="${path}"/></svg><p>${html}</p>`;
+      return d;
+    }
+
+    clearBtn.addEventListener('click', () => {
+      imgs.forEach(s => {
+        if (s.compressedUrl) URL.revokeObjectURL(s.compressedUrl);
+        if (s.previewUrl)    URL.revokeObjectURL(s.previewUrl);
+      });
+      imgs.clear();
+      origList.querySelectorAll('.orig-card').forEach(c => c.remove());
+      resList.querySelectorAll('.res-card').forEach(c => c.remove());
+      if (!origList.querySelector('.empty')) origList.appendChild(mkEmpty('Original images<br>will appear here','M3 3h18v18H3zM8.5 8.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM21 15l-5-5L5 21'));
+      if (!resList.querySelector('.empty'))  resList.appendChild(mkEmpty('Compressed files<br>will appear here','M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3'));
+      updateCounts();
+      refreshUI();
+      updateSummary();
+    });
+
+    dlAllBtn.addEventListener('click', () => {
+      [...imgs.keys()].forEach((id, i) => setTimeout(() => download(id), i * 150));
+    });
+  </script>
+</body>
+</html>
